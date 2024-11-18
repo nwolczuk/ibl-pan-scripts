@@ -63,7 +63,6 @@ def start_job(target_url, cred_idx = 1):
         )
     return response
 
-
 def check_status(job_id, cred_idx = 1):
     myaccesskey = os.getenv(f'ACCESS_KEY_{cred_idx}')
     mysecret = os.getenv(f'SECRET_KEY_{cred_idx}')
@@ -132,7 +131,7 @@ def archive_links():
     gc = gs.oauth()
     
     archive_status_df = gsheet_to_df('1OucvYycLyrcM_qHBoyAQcqE38B5NisPR403IfGEIuiE', 'status')
-    archive_status_df = archive_status_df[archive_status_df['internet_archive_url'] == ''].iloc[:int(len(archive_status_df)/4)]
+    archive_status_df = archive_status_df[archive_status_df['internet_archive_url'] == '']
     archive_status_df = archive_status_df.sample(frac=1)
     
     status_sheet = gc.open_by_key('1OucvYycLyrcM_qHBoyAQcqE38B5NisPR403IfGEIuiE')
@@ -150,7 +149,7 @@ def archive_links():
             else:
                 row['internet_archive_url'] = data
                 row['message'] = ''
-            status_worksheet.update(f'A{idx+2}:E{idx+2}', [list(row)])
+            status_worksheet.update(range_name=f'A{idx+2}:E{idx+2}', values=[list(row)])
         return
     
     with ThreadPoolExecutor(max_workers=5) as executor:
@@ -181,6 +180,6 @@ if __name__ == "__main__":
     while not stop_event.is_set():
         try:
             archive_links()
-        except (KeyError, requests.exceptions.ConnectionError, requests.exceptions.JSONDecodeError, requests.exceptions.ReadTimeout) as error:
+        except (KeyError, requests.exceptions.ConnectionError, requests.exceptions.JSONDecodeError) as error:
             print(error)
             continue
