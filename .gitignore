@@ -1,0 +1,68 @@
+# Exclude files with specified extensions
+*.xlsx
+*.xls
+*.csv
+*.ods
+*.json
+*.txt
+*.doc
+*.docx
+*.rtf
+*.odt
+*.pdf
+*.rdf
+*.ttl
+*.xml
+*.mrc
+*.marc
+*.mrk
+*.yaml
+*.yml
+*.log
+*.xsd
+*.bmp
+*.jpeg
+*.jpg
+*.png
+
+# Exclude Python cache files
+__pycache__/
+*.py[cod]
+
+# Exclude virtual environment files
+venv/
+.env/
+*.env
+
+# Exclude editor configuration files and workspace settings
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Exclude binary files
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Exclude test output and coverage reports
+*.test_output
+*.coverage
+.coverage.*
+
+# Exclude automatically generated files
+*.bak
+*.tmp
+*.orig
+.DS_Store
+Thumbs.db
+
+# Exclude archive files
+*.zip
+*.tar.gz
+*.7z
+*.rar
+
+# Exclude notebook checkpoints (optional)
+*.ipynb_checkpoints/
