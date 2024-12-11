@@ -49,17 +49,24 @@ def extract_links(html):
 
 
 def main():
-    years = range(2020, 2025) 
+    years = range(2000, 2025) 
     base_queries = [  # Podstawowe zapytania bez roku
-        'festiwal literacki',
-        'warsztaty literackie',
-        'konferencja literaturoznawcza',
-        'zjazd literaturoznawczy',
-        'kongres literaturoznawczy',
-        'seminarium literaturoznawcze',
-        'sesja literaturoznawcza',
-        'festiwal poezji',
-        'festiwal prozy',        
+        # 'festiwal literacki',
+        # 'festiwal teatralny',
+        # 'festiwal filmowy',
+        # 'festiwal poezji',
+        # 'festiwal prozy',
+        # 'konferencja literaturoznawcza',
+        # 'konferencja teatrologiczna',
+        # 'konferencja filmoznawcza'
+        # 'zjazd literaturoznawczy',
+        # 'zjazd teatrologiczny',
+        # 'zjazd filmoznawczy',
+        # 'kongres literaturoznawczy',
+        # 'kongres teatrologiczny',
+        # 'kongres filmoznawczy',
+        'konwent'
+        
     ]
 
     all_links = []

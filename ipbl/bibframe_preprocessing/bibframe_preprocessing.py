@@ -4,6 +4,9 @@ from bs4 import BeautifulSoup as bs
 from tqdm import tqdm
 import regex as re
 
+from rdflib import Graph, Namespace, URIRef, Literal, BNode
+from rdflib.namespace import RDF, RDFS
+
 #%% initial operations
 
 uri_base = 'http://example.org/'
@@ -61,18 +64,20 @@ def preprocess_authors(df):
         author_splitted = author_tuple[0].split('|')
         for idx, aut in enumerate(author_splitted):
             if idx > 2: break
+            label = aut.strip()
             if (viaf_url := author_tuple[idx + 1]):
-                label = get_viaf_label(viaf_url)
+                viaf_label = get_viaf_label(viaf_url)
                 viaf_uri = clear_viaf_uri(viaf_url)
             else:
-                label = aut.strip()
+                viaf_label = None
                 viaf_uri = None   
-            if label and label not in entities_dict['authors']:
+            if label not in entities_dict['authors']:
                 last_id = flow_control['author_last_id']
-                author_uri = uri_base + 'agents/agent' + str(last_id + 1).zfill(8)
+                author_id = str(last_id + 1).zfill(8)
                 entities_dict['authors'][label] = {
-                        'uri': author_uri,
+                        'author_id': author_id,
                         'viaf_uri': viaf_uri,
+                        'viaf_label': viaf_label,
                         'bibframe_type': 'bf:Agent',
                     }
                 flow_control['author_last_id'] += 1
@@ -121,9 +126,9 @@ def preprocess_topics(df):
     for topic in topics:
         if topic not in entities_dict['subjects']:
             last_id = flow_control['topic_last_id']
-            topic_uri = uri_base + 'subjects/subject' + str(last_id + 1).zfill(8)
+            topic_id = str(last_id + 1).zfill(8)
             entities_dict['subjects'][topic] = {
-                    'uri': topic_uri,
+                    'topic_id': topic_id,
                     'external_uri': None,
                     'bibframe_type': 'bf:Topic',
                 }
@@ -163,106 +168,164 @@ def preprocess_forms(df):
     for idx, form in enumerate(forms):
         form_uri = uri_base + 'genreForms/genreform' + str(idx + 1).zfill(8)
         entities_dict['genreforms'][form] = form_uri
-    
-    
 
+
+
+# work = EX["works/000001"]
+# g.add((work, RDF.type, BF.Work))
+
+# contribution = BNode()
+# g.add((work, BF.contribution, contribution))
+# g.add((contribution, RDF.type, BF.Contribution))
+# g.add((contribution, RDF.type, BF.PrimaryContribution))
+
+# # Tworzenie węzła bf:Agent
+# agent = EX["agents/000001"]
+# g.add((contribution, BF.agent, agent))
+# g.add((agent, RDF.type, BF.Agent))
+# g.add((agent, RDF.type, BF.Person))
+# g.add((agent, RDFS.label, Literal("Casado Velarde, Manuel")))
+
+# print(g.serialize(format="pretty-xml"))
+
+value = 'TEST VALUE TEST VALUE TEST VALUE'
+
+
+ELB = Namespace("http://literarybibliography.eu/")
+BF = Namespace("http://id.loc.gov/ontologies/bibframe/")
+
+g = Graph()
+g.bind("elb", ELB)
+g.bind("bf", BF)
+
+print(g.serialize(format="pretty-xml"))
+    
 def preprocess_row(idx, row):
     for col, value in row.iteritems():
-        work_uri = uri_base + str(flow_control.get('work_last_id') + 1).zfill(8)
+        work_id = str(flow_control.get('work_last_id') + 1).zfill(8)
+        work = ELB[f'works/{work_id}']
         flow_control['work_last_id'] += 1
-        instance_uri = uri_base + str(flow_control.get('instance_last_id') + 1).zfill(8)
-        flow_control['instance_last_id'] += 1
-        item_uri = uri_base + str(flow_control.get('item_last_id') + 1).zfill(8)
-        flow_control['item_last_id'] += 1
+        g.add((work, RDF.type, BF.Work))
         
-        updt_row = {
-                'subject': work_uri, 
-                'type': 'bf:Work', 
-                'predicate': 'rdf:about', 
-                'object': 'https://literarybibliography.eu/pl/search/record/b' + str(flow_control.get('work_last_id')).zfill(8),
-            }
-        # row update
-        updt_row = {
-                'subject': work_uri, 
-                'type': 'bf:Work', 
-                'predicate': 'bf:hasInstance', 
-                'object': instance_uri,
-            }
-        # row update
-        updt_row = {
-                'subject': instance_uri, 
-                'type': 'bf:Instance', 
-                'predicate': 'bf:hasItem', 
-                'object': item_uri,
-            }        
-        # row update
+        instance_id = str(flow_control.get('instance_last_id') + 1).zfill(8)
+        instance = ELB[f'instances/{instance_id}']
+        flow_control['instance_last_id'] += 1
+        g.add((work, BF.hasInstance, instance))
+        g.add((instance, RDF.type, BF.Instance))
+        g.add((instance, BF.instanceOf, work))
+        
+        item_id = str(flow_control.get('item_last_id') + 1).zfill(8)
+        item = ELB[f'items/{item_id}']
+        flow_control['item_last_id'] += 1
+        g.add((instance, BF.hasItem, item))
+        g.add((item, RDF.type, BF.Item))
+        g.add((item, BF.itemOf, instance))
         
         match col:
             case 'Link':
-                updt_row = {
-                        'subject': item_uri, 
-                        'type': 'bf:Item', 
-                        'predicate': 'bf:electronicLocator', 
-                        'object': value.strip()
-                    }
+                g.add((item, BF.electronicLocator, URIRef(value.strip())))
+                
             case 'Data publikacji':
-                updt_row = {
-                        'subject': instance_uri, 
-                        'type': 'bf:Instance', 
-                        'predicate': 'bf:originDate', 
-                        'object': value.strip()
-                    }
+                g.add((instance, BF.originDate, Literal(value.strip())))
+                
             case 'Autor':
-                pass
+                for author in value.split('|'):
+                    author_dct = entities_dict['authors'].get(author.strip())
+                    if author_dct:
+                        author_id, viaf_uri, viaf_label = author_dct['author_id'], author_dct['viaf_uri'], author_dct['viaf_label'] # it is possible to use locals().update(author_dct)
+                        label = viaf_label if viaf_label else author
+                        
+                        # create an Agent
+                        agent = ELB[f'agents/{author_id}']
+                        g.add((agent, RDF.type, BF.Agent))
+                        g.add((agent, RDF.type, BF.Person))
+                        g.add((agent, RDFS.label, Literal(label)))
+                        if viaf_uri:
+                            identifier = BNode()
+                            g.add((identifier, RDF.type, BF.Identifier))
+                            g.add((identifier, RDF.value, Literal(viaf_uri)))
+                            g.add((agent, BF.identifiedBy, identifier))
+        
+                        # add Agent
+                        contribution = BNode()
+                        g.add((work, BF.contribution, contribution))
+                        g.add((contribution, RDF.type, BF.Contribution))
+                        g.add((contribution, RDF.type, BF.PrimaryContribution))
+                        g.add((contribution, BF.agent, agent))
+                
             case 'do PBL':
                 pass
+            
             case 'VIAF autor 1':
                 pass
+            
             case 'VIAF autor 2':
                 pass
+            
             case 'VIAF autor 3':
                 pass
+            
             case 'Sekcja':
-                pass
-            case 'Tytuł artykułu':
-                updt_row = {
-                        'subject': work_uri, 
-                        'type': 'bf:Work', 
-                        'predicate': 'bf:title', 
-                        'object': value.strip()
-                    }
+                topic_dct = entities_dict['subjects'].get(value.strip())
+                if topic_dct:
+                    topic_id = topic_dct['topic_id']
+                    topic = ELB[f'subjects/{topic_id}']
+                    g.add((work, BF.subject, topic))
+                    g.add((topic, RDF.type, BF.Topic))
+                    g.add((topic, RDFS.label, Literal(value.strip())))
+                
+            case 'Tytuł artykułu':                
+                title = BNode()
+                g.add((work, BF.title, title))
+                g.add((title, RDF.type, BF.Title))
+                g.add((title, BF.mainTitle, Literal(value.strip())))
+                
             case 'Opis':
-                updt_row = {
-                        'subject': work_uri, 
-                        'type': 'bf:Work', 
-                        'predicate': 'bf:summary', 
-                        'object': value.strip()
-                    }
+                summary = BNode()
+                g.add((work, BF.summary, summary))
+                g.add((summary, RDF.type, BF.Summary))
+                g.add((summary, RDFS.label, Literal(value.strip())))
+                
             case 'Numer':
                 # EnumerationAndChronology
                 pass
+            
             case 'Tagi':
                 pass
+            
             case 'forma/gatunek':
-                pass
+                genreform = BNode()
+                g.add((work, BF.genreForm, genreform))
+                g.add((genreform, RDF.type, BF.GenreForm))
+                g.add((genreform, RDFS.label, Literal(value.strip())))
+                
             case 'hasła przedmiotowe':
                 pass
+            
             case 'byt 1':
                 pass
+            
             case 'zewnętrzny identyfikator bytu 1':
                 pass
+            
             case 'byt 2':
                 pass
+            
             case 'zewnętrzny identyfikator bytu 2':
                 pass
+            
             case 'byt 3':
                 pass
+            
             case 'zewnętrzny identyfikator bytu 3':
                 pass
+            
             case 'adnotacje':
                 pass
+            
             case 'Linki zewnętrzne':
                 pass
+            
             case 'Linki do zdjęć':
                 pass
 
