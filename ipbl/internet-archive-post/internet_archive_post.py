@@ -63,6 +63,7 @@ def start_job(target_url, cred_idx = 1):
         )
     return response
 
+
 def check_status(job_id, cred_idx = 1):
     myaccesskey = os.getenv(f'ACCESS_KEY_{cred_idx}')
     mysecret = os.getenv(f'SECRET_KEY_{cred_idx}')
@@ -117,17 +118,13 @@ def update_links_to_archive(gauth):
     for key, value in new_links.items():
         to_add = value.difference(links_in_archive)
         for link in to_add:
-            # links_to_add.append((key, link))
-            links_to_add.append(key + ' | ' + link + '\n')
+            links_to_add.append((key, link))
     if links_to_add:
-        with open('link_to_add.txt', 'w', encoding='utf-8') as txt:
-            txt.writelines(links_to_add)
-        print('\nLinks to add file exported.\n')
-    #     file_names, target_urls = zip(*links_to_add)
-    #     archive_status = pd.concat([archive_status, pd.DataFrame({'file_name': file_names, 'target_url': target_urls})], ignore_index=True)
-    #     status_sheet = gc.open_by_key('1OucvYycLyrcM_qHBoyAQcqE38B5NisPR403IfGEIuiE')
-    #     set_with_dataframe(status_sheet.worksheet('status'), archive_status)
-    # print('\nLinks to archive updated.\n')
+        file_names, target_urls = zip(*links_to_add)
+        archive_status = pd.concat([archive_status, pd.DataFrame({'file_name': file_names, 'target_url': target_urls})], ignore_index=True)
+        status_sheet = gc.open_by_key('1OucvYycLyrcM_qHBoyAQcqE38B5NisPR403IfGEIuiE')
+        set_with_dataframe(status_sheet.worksheet('status'), archive_status)
+    print('\nLinks to archive updated.\n')
     return
 
 
