@@ -2,90 +2,6 @@ from elasticsearch import Elasticsearch
 from sentence_transformers import SentenceTransformer
 import os
 
-username = 'elastic'
-# password = os.getenv('ELASTIC_PASSWORD') # Value you set in the environment variable
-password = 'estest'
-
-client = Elasticsearch(
-    "http://localhost:9200",
-    basic_auth=(username, password)
-)
-
-print(client.info())
-
-# Delete the index
-client.indices.delete(index="article_index", ignore_unavailable=True)
-
-# Define the mapping
-mappings = {
-    "properties": {
-        'title': {
-            'type': 'text',
-            'analyzer': 'polish'
-            },
-        'content': {
-            'type': 'text',
-            'analyzer': 'polish'
-            },
-        "vector_title": {
-            "type": "dense_vector",
-            "dims": 768  
-            },
-          "vector_content": {
-            "type": "dense_vector",
-            "dims": 768  
-            },
-        }
-}
-
-client.indices.exists(index='article_index')
-# Create the index
-client.indices.create(index="article_index", mappings=mappings)
-
-article_1 = {
-    'title': 'Artykuł o mrówkach',
-    'content': 'Mrówki mają dużo nóg i są bardzo pracowite.'
-    }
-
-article_2 = {
-    'title': 'Artykuł o lodowcach',
-    'content': 'Lodowce są bardzo zimne. Nie lubimy takich zimnych klimatów.'
-    }
-
-article_3 = {
-    'title': 'Niewiedza jest złem',
-    'content': 'W starożytnych czasach ludzie bali się niewiedzy. I mieli rację. Głupota zazwyczaj prowadziła do przedwczesnego zgonu.'
-    }
-
-client.index(index='article_index', body=article_1)
-client.index(index='article_index', body=article_2)
-
-# pretty print response
-def pretty_response(response):
-    if len(response["hits"]["hits"]) == 0:
-        print("Your search returned no results.")
-    else:
-        for hit in response["hits"]["hits"]:
-            id = hit["_id"]
-            score = hit["_score"]
-            title = hit["_source"]["title"]
-            content = hit["_source"]["content"]
-            pretty_output = f"\nID: {id}\nTitle: {title}\nContent: {content}\nScore: {score}"
-            print(pretty_output)
-
-
-search_term = 'pracowite'
-response = client.search(
-    index="article_index", query={"multi_match": {
-            "query": search_term,
-            "fields": ["title", "content"]
-        }}
-)
-
-pretty_response(response)
-
-
-# SEMANTIC SEARCH
 # Inicjalizacja modelu Sentence-BERT
 model = SentenceTransformer('paraphrase-xlm-r-multilingual-v1')
 
@@ -104,10 +20,19 @@ def index_document(title, content):
         'vector_content': vector_content
     })
 
-index_document(**article_1)
-index_document(**article_2)
-index_document(**article_3)
-
+# pretty print response
+def pretty_response(response):
+    if len(response["hits"]["hits"]) == 0:
+        print("Your search returned no results.")
+    else:
+        for hit in response["hits"]["hits"]:
+            id = hit["_id"]
+            score = hit["_score"]
+            title = hit["_source"]["title"]
+            content = hit["_source"]["content"]
+            pretty_output = f"\nID: {id}\nTitle: {title}\nContent: {content}\nScore: {score}"
+            print(pretty_output)
+            
 # Funkcja do wyszukiwania podobieństwa semantycznego
 def search_semantic(query, size, min_score=0.0):
     vector_query = get_vector(query).tolist()
@@ -135,7 +60,102 @@ def search_semantic(query, size, min_score=0.0):
     response = client.search(index='article_index', body=search_query)
     return response
 
-search_query = 'lód'
+
+username = 'elastic'
+# password = os.getenv('ELASTIC_PASSWORD') # Value you set in the environment variable
+password = ''
+
+client = Elasticsearch(
+    "https://localhost:9200",
+    basic_auth=(username, password),
+    verify_certs=False,
+)
+
+print(client.info())
+
+index_body = {
+    "mappings": {
+        "properties": {
+            "title": {
+                "type": "text",
+                "analyzer": "polish"
+            },
+            "content": {
+                "type": "text",
+                "analyzer": "polish"
+            },
+        }
+    }
+}
+
+# Usuń indeks, jeśli istnieje
+if client.indices.exists(index='article_index'):
+    client.indices.delete(index='article_index')
+
+client.indices.create(index='article_index', body=index_body)
+
+article_1 = {
+    'title': 'Pamięć, wyobraźnia, praktyki oporu',
+    'content': 'Świat to skomplikowane miejsce, a my jesteśmy w gruncie rzeczy dość prości. Jak proste istoty radzą sobie z narastającą złożonością świata? Oto pytanie, które stawiamy sobie, prowadząc badania nad kulturą wernakularną. Obszarem zawartych w tym tomie analiz jest właśnie przestrzeń rozciągająca się pomiędzy złożonością współczesnej kultury (relacji społecznych, ekonomii, polityki itd.) a prostotą narzędzi, którymi dysponujemy, by urządzić się w niej i działać sprawnie. Interesowały nas procesy upraszczania rzeczywistości, w ramach których jednostki ją postrzegają i opisują, planują i podejmują działania, a także budują swoją tożsamość i synchronizują wysiłki w większych grupach. Kultura wernakularna, jaką opisujemy w tej książce, stanowi próbę radzenia sobie prostymi środkami w skomplikowanym świecie.'
+    }
+
+article_2 = {
+    'title': 'Rola programów rządowych w zwiększaniu liczebności Sił Zbrojnych RP',
+    'content': 'Zmieniające się wyzwania dotyczące bezpieczeństwa państwa, zmiana struktury demograficznej społeczeństwa powodują konieczność rozszerzenia i intensyfikacji działań zapewniających Polsce skuteczną obronę i odstraszanie. Polska na przestrzeni lat prowadziła programy mające na celu wpływanie na liczebność i jakość Sił Zbrojnych RP jako jednego z elementów bezpieczeństwa państwa. W artykule przedstawiono zależność pomiędzy programami aktywizacji społeczeństwa a dynamiką wzrostu liczebności Sił Zbrojnych RP. Pojawiające się analizy postrzegania przez Polaków zaangażowania w obronę ojczyzny wskazują na zasadność wprowadzania nowych programów, które mogą wpływać na zmiany postaw społecznych, skutkujące wzrostem liczebności Sił Zbrojnych RP.'
+    }
+
+article_3 = {
+    'title': 'Placówki ochrony zdrowia oraz kadra lekarska w Częstochowie i powiecie częstochowskim w latach 1918-1939',
+    'content': 'Monografia Juliusza Sętowskiego Placówki ochrony zdrowia oraz kadra lekarska w Częstochowie  i powiecie częstochowskim w latach 1918-1939 w sposób kompleksowy omawia funkcjonowanie służby zdrowia w czasach II Rzeczypospolitej. Należy podkreślić, że do tej pory brak było tak całościowego spojrzenia na te kwestie, co czyni tę pozycję wyjątkowo interesującą i zapełniającą lukę na rynku wydawniczym. Autor omówił powstanie, funkcjonowanie i świadczone usługi dla ludności szpitali miejskich, tj. Szpitala Najświętszej Maryi Panny, Szpitala Miejskiego dla Chorych Zakaźnych, Szpitala Miejskiego dla Chorych Wewnętrznych oraz Szpitala dla Chorych Kobiet Wenerycznie, a także Szpitala Powszechnego Miejskiego, Szpitala Towarzystwa Dobroczynności dla Żydów, Szpitala Powiatowej Kasy Chorych. Zasygnalizowano też rolę i znaczenie funkcjonowania szpitalnictwa wojskowego, tak istotnego podczas powstań śląskich oraz wojny polsko-bolszewickiej. Autor pokusił się także o przedstawienie funkcjonowania placówek zdrowia – szpitali, przychodni i ośrodków zdrowia - w miejscowościach powiatu częstochowskiego, podkreślając rolę i znaczenie tamtejszego personelu  w podnoszeniu stanu zdrowotnego ludności. Istotną część monografii stanowią biogramy lekarek i lekarzy  Częstochowy i powiatu częstochowskiego. Biogramy przedstawiają jednostkowe losy tej grupy zawodowej. Na podkreślenie zasługuje bogata bibliografia, zawierająca zwłaszcza wybór źródeł z czasów dwudziestolecia międzywojennego.'
+    }
+
+client.index(index='article_index', body=article_1)
+client.index(index='article_index', body=article_2)
+client.index(index='article_index', body=article_3)
+
+search_term = 'kasa chorych'
+
+query = {
+    "query": {
+        "multi_match": {
+            "query": search_term,
+            "fields": ["title", "content"]
+        }
+    }
+}
+
+results = client.search(index='article_index', body=query)
+pretty_response(results)
+
+
+
+# SEMANTIC SEARCH
+article_1 = {
+    'title': 'Pamięć, wyobraźnia, praktyki oporu',
+    'content': 'Świat to skomplikowane miejsce, a my jesteśmy w gruncie rzeczy dość prości. Jak proste istoty radzą sobie z narastającą złożonością świata? Oto pytanie, które stawiamy sobie, prowadząc badania nad kulturą wernakularną. Obszarem zawartych w tym tomie analiz jest właśnie przestrzeń rozciągająca się pomiędzy złożonością współczesnej kultury (relacji społecznych, ekonomii, polityki itd.) a prostotą narzędzi, którymi dysponujemy, by urządzić się w niej i działać sprawnie. Interesowały nas procesy upraszczania rzeczywistości, w ramach których jednostki ją postrzegają i opisują, planują i podejmują działania, a także budują swoją tożsamość i synchronizują wysiłki w większych grupach. Kultura wernakularna, jaką opisujemy w tej książce, stanowi próbę radzenia sobie prostymi środkami w skomplikowanym świecie.'
+    }
+
+article_2 = {
+    'title': 'Rola programów rządowych w zwiększaniu liczebności Sił Zbrojnych RP',
+    'content': 'Zmieniające się wyzwania dotyczące bezpieczeństwa państwa, zmiana struktury demograficznej społeczeństwa powodują konieczność rozszerzenia i intensyfikacji działań zapewniających Polsce skuteczną obronę i odstraszanie. Polska na przestrzeni lat prowadziła programy mające na celu wpływanie na liczebność i jakość Sił Zbrojnych RP jako jednego z elementów bezpieczeństwa państwa. W artykule przedstawiono zależność pomiędzy programami aktywizacji społeczeństwa a dynamiką wzrostu liczebności Sił Zbrojnych RP. Pojawiające się analizy postrzegania przez Polaków zaangażowania w obronę ojczyzny wskazują na zasadność wprowadzania nowych programów, które mogą wpływać na zmiany postaw społecznych, skutkujące wzrostem liczebności Sił Zbrojnych RP.'
+    }
+
+article_3 = {
+    'title': 'Placówki ochrony zdrowia oraz kadra lekarska w Częstochowie i powiecie częstochowskim w latach 1918-1939',
+    'content': 'Monografia Juliusza Sętowskiego Placówki ochrony zdrowia oraz kadra lekarska w Częstochowie  i powiecie częstochowskim w latach 1918-1939 w sposób kompleksowy omawia funkcjonowanie służby zdrowia w czasach II Rzeczypospolitej. Należy podkreślić, że do tej pory brak było tak całościowego spojrzenia na te kwestie, co czyni tę pozycję wyjątkowo interesującą i zapełniającą lukę na rynku wydawniczym. Autor omówił powstanie, funkcjonowanie i świadczone usługi dla ludności szpitali miejskich, tj. Szpitala Najświętszej Maryi Panny, Szpitala Miejskiego dla Chorych Zakaźnych, Szpitala Miejskiego dla Chorych Wewnętrznych oraz Szpitala dla Chorych Kobiet Wenerycznie, a także Szpitala Powszechnego Miejskiego, Szpitala Towarzystwa Dobroczynności dla Żydów, Szpitala Powiatowej Kasy Chorych. Zasygnalizowano też rolę i znaczenie funkcjonowania szpitalnictwa wojskowego, tak istotnego podczas powstań śląskich oraz wojny polsko-bolszewickiej. Autor pokusił się także o przedstawienie funkcjonowania placówek zdrowia – szpitali, przychodni i ośrodków zdrowia - w miejscowościach powiatu częstochowskiego, podkreślając rolę i znaczenie tamtejszego personelu  w podnoszeniu stanu zdrowotnego ludności. Istotną część monografii stanowią biogramy lekarek i lekarzy  Częstochowy i powiatu częstochowskiego. Biogramy przedstawiają jednostkowe losy tej grupy zawodowej. Na podkreślenie zasługuje bogata bibliografia, zawierająca zwłaszcza wybór źródeł z czasów dwudziestolecia międzywojennego.'
+    }
+
+# delet index if exists
+if client.indices.exists(index='article_index'):
+    client.indices.delete(index='article_index')
+
+
+index_document(**article_1)
+index_document(**article_2)
+index_document(**article_3)
+
+# cosine search
+search_query = 'leczenie'
 results = search_semantic(search_query, 3)
 pretty_response(results)
 
