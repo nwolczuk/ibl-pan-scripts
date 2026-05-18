@@ -4,6 +4,7 @@
 *.csv
 *.ods
 *.json
+*.jsonl
 *.txt
 *.doc
 *.docx
